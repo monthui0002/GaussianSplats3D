@@ -100,7 +100,7 @@ class OrbitControls extends EventDispatcher {
         this.autoRotateSpeed = 2.0; // 30 seconds per orbit when fps is 60
 
         // The four arrow keys
-        this.keys = { LEFT: 'KeyA', UP: 'KeyW', RIGHT: 'KeyD', BOTTOM: 'KeyS' };
+        this.keys = { LEFT: 'KeyA', UP: 'KeyQ', RIGHT: 'KeyD', BOTTOM: 'KeyE', FORWARD: 'KeyW', BACKWARD: 'KeyS', RESET: 'Space' };
 
         // Mouse buttons
         this.mouseButtons = { LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN };
@@ -111,6 +111,7 @@ class OrbitControls extends EventDispatcher {
         // for reset
         this.target0 = this.target.clone();
         this.position0 = this.object.position.clone();
+        this.up0 = this.object.up.clone();
         this.zoom0 = this.object.zoom;
 
         // the target DOM element for key events
@@ -559,12 +560,27 @@ class OrbitControls extends EventDispatcher {
 
         }();
 
+        const panForward = function() {
+
+          const v = new Vector3();
+
+          return function panForward( distance, objectMatrix ) {
+
+              v.setFromMatrixColumn( objectMatrix, 2 );
+              v.multiplyScalar( - distance );
+
+              panOffset.add( v );
+
+          };
+
+      }();
+
         // deltaX and deltaY are in pixels; right and down are positive
         const pan = function() {
 
             const offset = new Vector3();
 
-            return function pan( deltaX, deltaY ) {
+            return function pan( deltaX, deltaY, deltaZ ) {
 
                 const element = scope.domElement;
 
@@ -581,6 +597,7 @@ class OrbitControls extends EventDispatcher {
                     // we use only clientHeight here so aspect ratio does not distort speed
                     panLeft( 2 * deltaX * targetDistance / element.clientHeight, scope.object.matrix );
                     panUp( 2 * deltaY * targetDistance / element.clientHeight, scope.object.matrix );
+                    panForward( 2 * deltaZ * targetDistance / element.clientHeight, scope.object.matrix );
 
                 } else if ( scope.object.isOrthographicCamera ) {
 
@@ -588,6 +605,8 @@ class OrbitControls extends EventDispatcher {
                     panLeft( deltaX * ( scope.object.right - scope.object.left ) /
                                         scope.object.zoom / element.clientWidth, scope.object.matrix );
                     panUp( deltaY * ( scope.object.top - scope.object.bottom ) / scope.object.zoom /
+                                      element.clientHeight, scope.object.matrix );
+                    panForward( deltaZ * ( scope.object.far - scope.object.near ) / scope.object.zoom /
                                       element.clientHeight, scope.object.matrix );
 
                 } else {
@@ -730,7 +749,7 @@ class OrbitControls extends EventDispatcher {
 
             panDelta.subVectors( panEnd, panStart ).multiplyScalar( scope.panSpeed );
 
-            pan( panDelta.x, panDelta.y );
+            pan( panDelta.x, panDelta.y, 0 );
 
             panStart.copy( panEnd );
 
@@ -770,7 +789,7 @@ class OrbitControls extends EventDispatcher {
 
                     } else {
 
-                        pan( 0, scope.keyPanSpeed );
+                        pan( 0, scope.keyPanSpeed, 0 );
 
                     }
 
@@ -785,7 +804,7 @@ class OrbitControls extends EventDispatcher {
 
                     } else {
 
-                        pan( 0, - scope.keyPanSpeed );
+                        pan( 0, - scope.keyPanSpeed, 0 );
 
                     }
 
@@ -800,7 +819,7 @@ class OrbitControls extends EventDispatcher {
 
                     } else {
 
-                        pan( scope.keyPanSpeed, 0 );
+                        pan( scope.keyPanSpeed, 0, 0 );
 
                     }
 
@@ -815,10 +834,44 @@ class OrbitControls extends EventDispatcher {
 
                     } else {
 
-                        pan( - scope.keyPanSpeed, 0 );
+                        pan( - scope.keyPanSpeed, 0, 0 );
 
                     }
 
+                    needsUpdate = true;
+                    break;
+                case scope.keys.FORWARD:
+
+                    if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+                        rotateLeft( - 2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight );
+
+                    } else {
+
+                        pan( 0, 0, + scope.keyPanSpeed );
+
+                    }
+
+                    needsUpdate = true;
+                    break;
+
+                case scope.keys.BACKWARD:
+
+                    if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+
+                        rotateLeft( - 2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight );
+
+                    } else {
+
+                        pan( 0, 0, - scope.keyPanSpeed );
+
+                    }
+
+                    needsUpdate = true;
+                    break;
+
+                case scope.keys.RESET:
+                    scope.reset();
                     needsUpdate = true;
                     break;
 
@@ -945,7 +998,7 @@ class OrbitControls extends EventDispatcher {
 
             panDelta.subVectors( panEnd, panStart ).multiplyScalar( scope.panSpeed );
 
-            pan( panDelta.x, panDelta.y );
+            pan( panDelta.x, panDelta.y, 0 );
 
             panStart.copy( panEnd );
 
